@@ -10,20 +10,14 @@ import java.net.*;
 public class Server {
 
     DatagramPacket sendPacket, receivePacket;
-    DatagramSocket sendSocket, receiveSocket;
+    DatagramSocket receiveSocket;
+    DatagramParser parse; //parse the datagram packet
 
     public Server()
     {
+        parse = new DatagramParser();
         try {
-            // Construct a datagram socket and bind it to any available
-            // port on the local host machine. This socket will be used to
-            // send UDP Datagram packets.
-            sendSocket = new DatagramSocket();
-
-            // Construct a datagram socket and bind it to port 5000
-            // on the local host machine. This socket will be used to
-            // receive UDP Datagram packets.
-            receiveSocket = new DatagramSocket(5000);
+            receiveSocket = new DatagramSocket(69);
 
             // to test socket timeout (2 seconds)
             //receiveSocket.setSoTimeout(2000);
@@ -31,6 +25,67 @@ public class Server {
             se.printStackTrace();
             System.exit(1);
         }
+    }
+
+    private byte[] returnConfirmationCode(int type) {
+        // Creates the opcode based on the type (1 for read, 2 for write)
+        byte[] opcode = new byte[4];
+        opcode[0] = 0;
+        if(type == 1){
+            opcode[1] = 3;
+            opcode[2] = 0;
+            opcode[3] = 1;
+        }else if(type == 2){
+            opcode[1] = 4;
+            opcode[2] = 0;
+            opcode[3] = 0;
+        }else{
+            throw new RuntimeException("Invalid packet received");
+        }
+        return opcode;
+    }
+
+    public void receiveAndSend() throws SocketException {
+        // Construct a DatagramPacket for receiving packets from the host
+        byte data[] = new byte[100];
+        receivePacket = new DatagramPacket(data, data.length);
+        System.out.println("Server: Waiting for Packet.\n");
+
+        try {
+            // Block until a datagram is received via sendReceiveSocket.
+            receiveSocket.receive(receivePacket);
+        } catch(IOException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+
+        // Process the received datagram.
+        System.out.println("Server: Packet received:");
+        System.out.println("From host: " + receivePacket.getAddress());
+        System.out.println("Host port: " + receivePacket.getPort());
+        parse.parseRequest(receivePacket); //parse the request packet
+
+        byte senddata[] = returnConfirmationCode(parse.getOpcode(receivePacket));
+        sendPacket = new DatagramPacket(senddata, senddata.length, receivePacket.getAddress(), receivePacket.getPort());
+
+        try {
+            DatagramSocket sendSocket = new DatagramSocket(); //create a new socket to send data back to host
+            sendSocket.send(sendPacket);
+            sendSocket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+
+        System.out.print("\nServer response in bytes: ");
+        for (int i = 0; i < 4; i++) {
+            System.out.print(String.format("%02X ", senddata[i]));
+        }
+    }
+
+    public static void main(String[] args) throws SocketException {
+        Server s = new Server();
+        s.receiveAndSend();
     }
 }
 
