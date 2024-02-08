@@ -12,6 +12,8 @@ public class Server {
     DatagramPacket sendPacket, receivePacket;
     DatagramSocket receiveSocket;
     DatagramParser parse; //parse the datagram packet
+    public static final String ANSI_RESET = "\u001B[0m";
+    public static final String ANSI_GREEN = "\u001B[32m\t";
 
     public Server()
     {
@@ -61,8 +63,6 @@ public class Server {
 
         // Process the received datagram.
         System.out.println("Server: Packet received:");
-        System.out.println("From host: " + receivePacket.getAddress());
-        System.out.println("Host port: " + receivePacket.getPort());
         parse.parseRequest(receivePacket); //parse the request packet
 
         byte senddata[] = returnConfirmationCode(parse.getOpcode(receivePacket));
@@ -85,7 +85,20 @@ public class Server {
 
     public static void main(String[] args) throws SocketException {
         Server s = new Server();
-        s.receiveAndSend();
+
+        while(true){
+            System.out.println( ANSI_GREEN + "\n\n------------------------------------------------" + ANSI_RESET);
+            s.receiveAndSend();
+
+            // Introduce a delay between iterations
+            try {
+                // Sleep for 1 second (1000 milliseconds)
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                // Handle interrupted exception
+                e.printStackTrace();
+            }
+        }
     }
 }
 

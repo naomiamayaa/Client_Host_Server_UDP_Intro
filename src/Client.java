@@ -7,8 +7,12 @@ public class Client {
     DatagramSocket sendReceiveSocket;
 
     DatagramParser parse; //parse the datagram packet
+    public static final String ANSI_RESET = "\u001B[0m";
+    public static final String ANSI_GREEN = "\u001B[32m\t";
+    public static final String ANSI_RED = "\u001B[31m";
 
     int BYTE_SIZE = 100;
+    private static final int CLIENT_PORT = 23;
 
     public Client()
     {
@@ -30,7 +34,7 @@ public class Client {
         return opcode;
     }
 
-    public void sendRequest(int readOrWrite, String filename, String mode, int serverPort){
+    public void sendRequest(int readOrWrite, String filename, String mode){
         byte[] request = new byte[BYTE_SIZE];
         byte[] opcode = createOpcode(readOrWrite);  // 1 for read request
 
@@ -46,42 +50,35 @@ public class Client {
 
         try{
             sendPacket = new DatagramPacket(request, request.length,
-                    InetAddress.getLocalHost(), serverPort); //send packet to host
+                    InetAddress.getLocalHost(), CLIENT_PORT); //send packet to host
+
         } catch (UnknownHostException e) {
             e.printStackTrace();
             System.exit(1);
         }
 
-        int len = filenameBytes.length + modeBytes.length + 4;
-
-        System.out.println("Client: Sending packet containing:");
-        if(readOrWrite == 1){
-            System.out.println("Read Request");
-        } else {
-            System.out.println("Write Request");
-        }
-
-
-        System.out.println("Len: " + sendPacket.getLength());
-        System.out.println("To host: " + sendPacket.getAddress());
-        System.out.println("Destination host port: " + sendPacket.getPort());
         parse.parseRequest(sendPacket); //parse the request packet
 
         // Send the datagram packet to the server via the send/receive socket.
         try {
             sendReceiveSocket.send(sendPacket);
+            if(readOrWrite != 1 && readOrWrite != 2){
+                sendReceiveSocket.close();
+                System.exit(1);
+                //throw new RuntimeException("Invalid request type");
+            }
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);
         }
 
-        System.out.println("Client: Packet sent.\n");
+        System.out.println("\nClient: Packet sent.");
     }
     public void receiveData(){
         byte data[] = new byte[100];
         receivePacket = new DatagramPacket(data, data.length);
 
-        System.out.println("Client: Waiting for packet.");
+        System.out.println("Client: Waiting for packet.\n");
         try {
             // Block until a datagram is received via sendReceiveSocket.
             sendReceiveSocket.receive(receivePacket);
@@ -89,24 +86,48 @@ public class Client {
             e.printStackTrace();
             System.exit(1);
         }
+        byte receivedata[] = receivePacket.getData();
 
-        // Process the received datagram.
-        System.out.println("Client: Packet received:");
-        System.out.println("From host: " + receivePacket.getAddress());
-        System.out.println("Host port: " + receivePacket.getPort());
-        parse.parseRequest(receivePacket); //parse the request packet
-
+        System.out.println("Client: Packet received from Host:");
+        System.out.print("Host response in bytes: ");
+        for (int i = 0; i < 4; i++) {
+            System.out.print(String.format("%02X ", receivedata[i]));
+        }
+        System.out.println();
         // close the socket.
         sendReceiveSocket.close();
     }
 
     public static void main(String[] args) {
-            int intermediateHostPort = 23;
 
+        for(int i = 0; i < 11; i++) {
+
+            System.out.println("\n\nIteration: " + ANSI_GREEN + i + ANSI_RESET);
             Client c = new Client();
-            c.sendRequest(1, "test.txt", "netascii", intermediateHostPort);
-            //c.readRequest("test.txt", "netascii", intermediateHostPort);
+
+            if(i % 2 == 0){
+                c.sendRequest(1, "test.txt", "netascii");
+            }else{
+                c.sendRequest(2, "test.txt", "octet");
+            }
+
             c.receiveData();
+
+            // Introduce a delay between iterations
+            try {
+                // Sleep for 1 second (1000 milliseconds)
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                // Handle interrupted exception
+                e.printStackTrace();
+            }
+        }
+
+        //11th request should fail
+        System.out.println("\n\nIteration: " + ANSI_RED + 11 + ANSI_RESET);
+        Client c = new Client();
+        c.sendRequest(3, "test.txt", "octet");
+        c.receiveData();
     }
 
 }

@@ -4,16 +4,15 @@ public class DatagramParser {
 
     // Assuming that the opcode is 2 bytes
     private static final int OPCODE_LENGTH = 2;
-
     // Method to parse the filename and mode from a DatagramPacket
-    public static void parseRequest(DatagramPacket packet) {
+    public static int parseRequest(DatagramPacket packet) {
         byte[] data = packet.getData();
         int length = packet.getLength();
 
         // Ensure the packet is at least large enough to contain the opcode
         if (length < OPCODE_LENGTH) {
             System.out.println("Invalid request packet");
-            return;
+            return 1;
         }
 
         // Extract the opcode (first two bytes)
@@ -42,10 +41,13 @@ public class DatagramParser {
                 System.out.println("Write Request");
             }
             // Print the parsed values
+            System.out.println("From host: " + packet.getAddress());
+            System.out.println("Host port: " + packet.getPort());
             System.out.println("Filename: " + filename);
             System.out.println("Mode: " + mode);
         } else {
             System.out.println("Unsupported opcode: " + opcode);
+            return 1;
         }
 
         // Print the packet content in bytes
@@ -54,6 +56,7 @@ public class DatagramParser {
             System.out.print(String.format("%02X ", data[i]));
         }
         System.out.println();
+        return 0;
     }
 
     // Helper method to find the index of the first null byte in the array
@@ -65,6 +68,8 @@ public class DatagramParser {
         }
         return array.length;  // Return length if null byte not found
     }
+
+
 
     public int getOpcode(DatagramPacket packet) {
         byte[] data = packet.getData();
